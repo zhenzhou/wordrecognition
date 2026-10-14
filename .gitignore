@@ -1,0 +1,10 @@
+# 构建工具的大体积中间文件，不要提交
+tools/_cache/
+tools/node_modules/
+tools/_shots/
+__pycache__/
+.vscode/
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars

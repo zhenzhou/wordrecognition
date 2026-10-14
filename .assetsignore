@@ -1,0 +1,13 @@
+# Cloudflare Workers 静态资源上传时忽略的文件（只上传网页本身需要的内容）
+tools
+.git
+.gitignore
+.vscode
+.assetsignore
+wrangler.jsonc
+wrangler.toml
+node_modules
+README.md
+start.bat
+.htaccess
+nginx.htaccess
