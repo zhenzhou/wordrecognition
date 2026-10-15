@@ -15,6 +15,8 @@
  */
 import { loadData } from './data.js';
 import { closeHoverCard } from './hovercard.js';
+import { initPet } from './petwidget.js';
+import { profileAvatar } from './pets.js';
 import { probeAudio, stopSpeaking } from './speech.js';
 import { getProfile } from './store.js';
 import { h, mount } from './util.js';
@@ -69,7 +71,7 @@ function renderTopbar() {
             ),
         ),
         profile
-            ? h('a', { class: `profile-chip ${activeKey === 'settings' ? 'active' : ''}`, href: '#/settings', title: '设置 / 切换小朋友' }, h('span', { text: profile.avatar }), h('span', { class: 'pc-name', text: profile.name }))
+            ? h('a', { class: `profile-chip ${activeKey === 'settings' ? 'active' : ''}`, href: '#/settings', title: '设置 / 切换小朋友' }, profileAvatar(profile, 34), h('span', { class: 'pc-name', text: profile.name }))
             : null,
     );
 }
@@ -111,6 +113,7 @@ async function start() {
         return;
     }
     probeAudio();
+    initPet();
     window.addEventListener('hashchange', route);
     if (!getProfile()) {
         renderTopbar();

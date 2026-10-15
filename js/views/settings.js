@@ -3,8 +3,8 @@
  */
 import { D } from '../data.js';
 import { canSpeak, listVoices, speakText } from '../speech.js';
+import { SPECIES, STAGE_THRESHOLDS, petElement, petTitle, profileAvatar, profileStage, speciesById, speciesOf } from '../pets.js';
 import {
-    AVATARS,
     createProfile,
     deleteProfile,
     exportData,
@@ -13,6 +13,7 @@ import {
     importData,
     listProfiles,
     resetProgress,
+    subscribe,
     switchProfile,
     updateProfile,
     updateSettings,
@@ -20,12 +21,48 @@ import {
 import { dateKey, h, modal, mount, toast } from '../util.js';
 
 /**
+ * 宠物选择器（单选按钮组）。展示各物种“青年”阶段的样子。
+ * @param {string} selected 当前选中的物种 id
+ * @param {Function} onPick 选中回调 (id) => void
+ */
+function petPicker(selected, onPick) {
+    const box = h('div', { class: 'pet-pick', role: 'radiogroup', 'aria-label': '选择宠物' });
+    SPECIES.forEach((sp) => {
+        const on = sp.id === selected;
+        box.appendChild(
+            h(
+                'button',
+                {
+                    class: `pet-pick-btn ${on ? 'on' : ''}`,
+                    type: 'button',
+                    role: 'radio',
+                    'aria-checked': on ? 'true' : 'false',
+                    title: sp.desc,
+                    onclick: (e) => {
+                        box.querySelectorAll('.pet-pick-btn').forEach((b) => {
+                            b.classList.remove('on');
+                            b.setAttribute('aria-checked', 'false');
+                        });
+                        e.currentTarget.classList.add('on');
+                        e.currentTarget.setAttribute('aria-checked', 'true');
+                        onPick(sp.id);
+                    },
+                },
+                petElement(sp.id, 3, 72),
+                h('span', { text: sp.name }),
+            ),
+        );
+    });
+    return box;
+}
+
+/**
  * 弹出“新建小朋友档案”对话框。
  * @param {Function} onDone 创建成功后的回调
  * @param {boolean} [first] 是否首次使用（不可取消）
  */
 export function openProfileDialog(onDone, first = false) {
-    let avatar = AVATARS[0];
+    let pet = SPECIES[0].id;
     const nameInput = h('input', {
         class: 'input',
         type: 'text',
@@ -33,44 +70,25 @@ export function openProfileDialog(onDone, first = false) {
         placeholder: '小朋友的名字或昵称',
         'aria-label': '名字',
     });
-    const avatarBox = h(
-        'div',
-        { class: 'avatar-pick', role: 'radiogroup', 'aria-label': '选择头像' },
-        AVATARS.map((a, i) =>
-            h('button', {
-                class: `avatar-btn ${i === 0 ? 'on' : ''}`,
-                type: 'button',
-                role: 'radio',
-                'aria-checked': i === 0 ? 'true' : 'false',
-                text: a,
-                onclick: (e) => {
-                    avatar = a;
-                    avatarBox.querySelectorAll('.avatar-btn').forEach((b) => {
-                        b.classList.remove('on');
-                        b.setAttribute('aria-checked', 'false');
-                    });
-                    e.currentTarget.classList.add('on');
-                    e.currentTarget.setAttribute('aria-checked', 'true');
-                },
-            }),
-        ),
-    );
+    const avatarBox = petPicker(pet, (id) => {
+        pet = id;
+    });
     modal({
         title: first ? '欢迎来到小小识字乐园 🎉' : '新建小朋友',
         dismissible: !first,
         body: h(
             'div',
             { class: 'form' },
-            h('p', { class: 'muted', text: first ? '先给小朋友起个名字、选个头像。不需要注册登录，学习进度保存在这台电脑的浏览器里。' : '每个小朋友有自己的识字进度。' }),
+            h('p', { class: 'muted', text: first ? '先给小朋友起个名字、领养一只宠物蛋。认识的字越多，宠物长得越大。不需要注册登录，学习进度保存在这台电脑的浏览器里。' : '每个小朋友有自己的识字进度和宠物。' }),
             h('label', {}, '名字', nameInput),
-            h('label', {}, '头像', avatarBox),
+            h('div', { class: 'form-field' }, h('span', { class: 'form-label', text: '选一只宠物（也是你的头像）' }), avatarBox),
         ),
         actions: [
             {
                 label: '开始',
                 primary: true,
                 onClick: () => {
-                    createProfile(nameInput.value || '小朋友', avatar);
+                    createProfile(nameInput.value || '小朋友', pet);
                     onDone();
                 },
             },
@@ -85,7 +103,7 @@ function profileSection(rerender) {
         h(
             'li',
             { class: p.id === current.id ? 'current' : '' },
-            h('span', { class: 'pr-avatar', text: p.avatar }),
+            h('span', { class: 'pr-avatar' }, profileAvatar(p, 44)),
             h('span', { class: 'pr-name', text: p.name }),
             h('span', { class: 'muted', text: `认识 ${Object.values(p.chars).filter((r) => r.s === 2).length} 字` }),
             p.id === current.id
@@ -119,6 +137,54 @@ function profileSection(rerender) {
             h('button', { class: 'btn btn-small', type: 'button', text: '修改当前名字', onclick: () => { updateProfile({ name: nameInput.value.trim().slice(0, 12) || current.name }); rerender(); toast('已保存'); } }),
             h('button', { class: 'btn btn-small btn-primary', type: 'button', text: '＋ 新建小朋友', onclick: () => openProfileDialog(rerender) }),
         ),
+    );
+}
+
+function petSection(rerender) {
+    const p = getProfile();
+    const id = speciesOf(p);
+    const species = speciesById(id);
+    const best = profileStage(p);
+    const show = h('input', {
+        type: 'checkbox',
+        checked: getSettings().showPet !== false,
+        onchange: (e) => {
+            updateSettings({ showPet: e.target.checked });
+            toast(e.target.checked ? '宠物回来啦' : '宠物已隐藏');
+        },
+    });
+    // 在页面右侧点“×”隐藏宠物时，同步这里的开关；视图被替换后自动取消订阅
+    const off = subscribe(() => {
+        if (!show.isConnected) off();
+        else show.checked = getSettings().showPet !== false;
+    });
+    const stages = h(
+        'ol',
+        { class: 'pet-stages', 'aria-label': `${species.name}的成长阶段` },
+        [0, 1, 2, 3, 4, 5].map((s) =>
+            h(
+                'li',
+                { class: s <= best ? 'got' : '' },
+                petElement(id, s, 72),
+                h('span', { class: 'ps-title', text: petTitle(id, s) }),
+                h('span', { class: 'ps-need muted', text: s === 0 ? '领养时' : `认识 ${STAGE_THRESHOLDS[s]} 字` }),
+            ),
+        ),
+    );
+    return h(
+        'section',
+        { class: 'card' },
+        h('h2', { text: '🐾 学习宠物' }),
+        h('p', { class: 'muted', text: `现在是「${petTitle(id, best)}」。认识的字越多，宠物就会长得越大；换一只宠物不会丢失成长进度。` }),
+        h('label', { class: 'check' }, show, ' 在页面右侧显示宠物'),
+        stages,
+        h('p', { class: 'muted', text: '换一只宠物：' }),
+        petPicker(id, (next) => {
+            const sp = speciesById(next);
+            updateProfile({ pet: next, avatar: sp.emoji });
+            toast(`已换成${sp.name}`);
+            rerender();
+        }),
     );
 }
 
@@ -245,6 +311,7 @@ export function renderSettings(root, _params, refreshShell) {
         root,
         h('div', { class: 'page-head' }, h('h1', { text: '⚙️ 设置（家长区）' }), h('p', { class: 'muted', text: `课程共 ${D.total} 个字，分 ${D.stages.length} 个阶段、${D.groups.length} 组。` })),
         profileSection(rerender),
+        petSection(rerender),
         learningSection(),
         voiceSection(),
         backupSection(rerender),

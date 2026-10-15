@@ -3,12 +3,14 @@
  *
  * 数据结构：
  *   db = { v, current, settings, profiles: { [id]: profile } }
- *   profile = { id, name, avatar, created, goal, chars, groups, days }
+ *   profile = { id, name, avatar, pet, petBest, created, goal, chars, groups, days }
+ *   pet = 宠物物种 id；petBest = 宠物曾达到的最高成长阶段（宠物不会退化）
  *   chars[c]  = { s: 1 学过 | 2 认识, b: 复习盒子 0~6, d: 下次复习时间戳, t: 首次学习时间, ok, ng }
  *   groups[id] = { done: 时间戳, stars: 1~3 }
  *   days[YYYY-MM-DD] = { n: 新学字数, k: 新认识字数, q: 测验次数 }
  */
 import { D } from './data.js';
+import { speciesById } from './pets.js';
 import { dateKey } from './util.js';
 
 const KEY = 'shizi.v1';
@@ -17,11 +19,16 @@ const DAY = 86400000;
 /** 复习间隔（天），下标为盒子编号。 */
 export const INTERVALS = [0, 1, 2, 4, 7, 15, 30];
 
-export const AVATARS = ['🐼', '🐰', '🐯', '🦊', '🐱', '🐶', '🐸', '🦄', '🐥', '🐳', '🦁', '🐨'];
-
-const DEFAULT_SETTINGS = { rate: 0.85, voice: '', hoverSpeak: false };
+const DEFAULT_SETTINGS = { rate: 0.85, voice: '', hoverSpeak: false, showPet: true };
 
 let db = load();
+const listeners = new Set();
+
+/** 订阅数据变化（每次保存后触发），返回取消订阅函数。 */
+export function subscribe(fn) {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+}
 
 function load() {
     try {
@@ -43,6 +50,7 @@ function save() {
     } catch (err) {
         console.warn('保存进度失败', err);
     }
+    listeners.forEach((fn) => fn());
 }
 
 // ---------------------------------------------------------------- 设置
@@ -64,12 +72,20 @@ export function getProfile() {
     return db.profiles[db.current] || null;
 }
 
-export function createProfile(name, avatar) {
+/**
+ * 新建小朋友档案。
+ * @param {string} name 名字
+ * @param {string} [pet] 宠物物种 id（见 pets.js），同时决定头像
+ */
+export function createProfile(name, pet) {
     const id = `p${Date.now().toString(36)}`;
+    const species = speciesById(pet) || speciesById('fox');
     db.profiles[id] = {
         id,
         name: name.trim().slice(0, 12) || '小朋友',
-        avatar: avatar || AVATARS[0],
+        pet: species.id,
+        avatar: species.emoji,
+        petBest: 0,
         created: Date.now(),
         goal: 5,
         chars: {},

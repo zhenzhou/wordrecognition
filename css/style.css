@@ -344,9 +344,83 @@ mark { background: none; color: var(--red); font-weight: 800; }
 .form { display: grid; gap: 12px; }
 .form label, .card > label { display: grid; gap: 4px; font-weight: 600; margin-bottom: 10px; }
 .check { display: flex !important; grid-template-columns: none; align-items: center; gap: 8px; }
-.avatar-pick { display: flex; flex-wrap: wrap; gap: 8px; }
-.avatar-btn { font-size: 1.8rem; width: 52px; height: 52px; border-radius: 14px; border: 3px solid var(--line); background: #fff; cursor: pointer; }
-.avatar-btn.on { border-color: var(--primary); background: #fff0e0; }
+.form-field { display: grid; gap: 4px; }
+.form-label { font-weight: 600; }
+
+/* ---------- 宠物 ---------- */
+.pet-icon { display: inline-block; line-height: 0; flex: none; }
+.pet-icon .pet-svg, .pet-stage .pet-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.pet-bob { animation: pet-bob 2.6s ease-in-out infinite; }
+.pet-eyes { transform-box: fill-box; transform-origin: center; animation: pet-blink 4.5s infinite; }
+.pet-egg { transform-box: fill-box; transform-origin: 50% 100%; animation: pet-wobble 2.6s ease-in-out infinite; }
+.pet-aura { animation: pet-glow 3s ease-in-out infinite; }
+.pet-spark { transform-box: fill-box; transform-origin: center; animation: pet-twinkle 1.8s ease-in-out infinite; }
+.pet-wings { transform-box: fill-box; transform-origin: 50% 80%; animation: pet-flap 2.2s ease-in-out infinite; }
+@keyframes pet-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes pet-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes pet-wobble { 0%, 70%, 100% { transform: rotate(0); } 78% { transform: rotate(-5deg); } 86% { transform: rotate(5deg); } 94% { transform: rotate(-3deg); } }
+@keyframes pet-glow { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes pet-twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes pet-flap { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.94); } }
+@keyframes pet-jump { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-22px) scale(1.04, 0.97); } 60% { transform: translateY(0) scale(0.97, 1.03); } }
+
+.profile-chip .pet-icon { margin: -4px 0; }
+.hero-avatar { display: block; margin-bottom: 4px; }
+
+.pet-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.pet-pick-btn {
+    display: grid; justify-items: center; gap: 2px; padding: 6px 4px; border-radius: 16px; border: 3px solid var(--line);
+    background: #fff; cursor: pointer; font-weight: 700; font-size: 0.9rem;
+}
+.pet-pick-btn:hover { border-color: #ffd7b0; }
+.pet-pick-btn.on { border-color: var(--primary); background: #fff0e0; }
+.pet-stages { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.pet-stages li { display: grid; justify-items: center; gap: 2px; padding: 8px 4px; border-radius: 16px; background: #f4efe6; text-align: center; opacity: 0.55; filter: grayscale(0.6); }
+.pet-stages li.got { background: var(--yellow-bg); opacity: 1; filter: none; }
+.ps-title { font-weight: 700; font-size: 0.9rem; }
+.ps-need { font-size: 0.78rem; }
+
+/* 页面右侧的宠物卡片 */
+#pet-root { position: fixed; right: 14px; top: 92px; z-index: 40; width: 190px; pointer-events: none; }
+.pet-widget {
+    position: relative; pointer-events: auto; text-align: center; padding: 28px 12px 12px;
+    background: linear-gradient(180deg, #fff 0%, #fff6e8 100%); border: 2px solid #fff; border-radius: 26px; box-shadow: var(--shadow);
+}
+.pet-hide {
+    position: absolute; top: 6px; right: 8px; width: 26px; height: 26px; border: none; border-radius: 50%;
+    background: #f4efe6; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.pet-hide:hover { background: #ffe0e2; color: var(--red); }
+.pet-stage { display: block; width: 100%; padding: 0; border: none; background: none; cursor: pointer; border-radius: 20px; }
+.pet-stage.jump { animation: pet-jump 0.6s ease-out; }
+.pet-name { margin-top: 6px; display: flex; justify-content: center; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.pet-lv { font-size: 0.75rem; background: var(--purple); color: #fff; padding: 0 8px; border-radius: 999px; font-weight: 700; }
+.pet-species { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.pet-next { font-size: 0.78rem; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+.pet-bubble {
+    position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%) scale(0.9); width: 210px; padding: 8px 12px;
+    background: #fff; border: 2px solid var(--primary); border-radius: 16px; font-size: 0.9rem; font-weight: 600; box-shadow: var(--shadow);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+}
+.pet-bubble.show { opacity: 1; transform: translateX(-50%) scale(1); }
+
+/* 为右侧宠物腾出位置：只有宽屏才并排显示 */
+@media (min-width: 1000px) {
+    body.has-pet #app {
+        max-width: min(1120px, calc(100vw - 220px));
+        margin-left: max(0px, calc((100vw - 220px - 1120px) / 2));
+        margin-right: auto;
+    }
+}
+/* 窄屏：只保留一个小宠物漂在右下角，不占版面 */
+@media (max-width: 999px) {
+    #pet-root { top: auto; bottom: 10px; right: 8px; width: 92px; }
+    .pet-widget { padding: 6px; border-radius: 22px; }
+    .pet-hide { top: -8px; right: -8px; }
+    .pet-name, .pet-species, .pet-widget .pbar, .pet-next { display: none; }
+    .pet-bubble { left: auto; right: 0; top: auto; bottom: calc(100% + 8px); transform: scale(0.9); width: 180px; }
+    .pet-bubble.show { transform: scale(1); }
+}
 .modal-overlay { position: fixed; inset: 0; background: rgba(40, 30, 70, 0.45); display: grid; place-items: center; z-index: 300; padding: 16px; }
 .modal { background: #fff; border-radius: 24px; padding: 24px; width: min(480px, 100%); max-height: 92vh; overflow: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }

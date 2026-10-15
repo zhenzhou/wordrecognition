@@ -3,6 +3,7 @@
  */
 import { progressBar, ring } from '../components.js';
 import { D, stageChars } from '../data.js';
+import { profileAvatar } from '../pets.js';
 import { dueChars, getProfile, groupProgress, nextGroup, stats } from '../store.js';
 import { h, mount } from '../util.js';
 
@@ -74,7 +75,7 @@ export function renderHome(root) {
         h(
             'div',
             { class: 'hero-text' },
-            h('div', { class: 'hero-avatar', text: profile.avatar }),
+            h('div', { class: 'hero-avatar' }, profileAvatar(profile, 110)),
             h('h1', { text: `${greeting()}，${profile.name}！` }),
             h('p', { text: st.known === 0 ? '欢迎来到识字乐园，我们从第一个字开始吧。' : `你已经认识 ${st.known} 个字啦，继续加油！` }),
             h(
