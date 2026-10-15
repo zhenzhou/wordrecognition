@@ -18,7 +18,7 @@ import { closeHoverCard } from './hovercard.js';
 import { initPet } from './petwidget.js';
 import { profileAvatar } from './pets.js';
 import { probeAudio, stopSpeaking } from './speech.js';
-import { getProfile } from './store.js';
+import { getProfile, requestPersistentStorage } from './store.js';
 import { h, mount } from './util.js';
 import { renderChar } from './views/char.js';
 import { renderGroup } from './views/group.js';
@@ -121,6 +121,7 @@ async function start() {
         openProfileDialog(() => route(), true);
         return;
     }
+    requestPersistentStorage();
     route();
 }
 

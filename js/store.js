@@ -44,9 +44,32 @@ function load() {
     return { v: 1, current: null, profiles: {}, settings: { ...DEFAULT_SETTINGS } };
 }
 
+let persistAsked = false;
+
+/**
+ * 申请持久化存储，避免磁盘空间紧张时浏览器自动清理本站数据。
+ * 每个页面会话只申请一次；已授权时不会重复申请。
+ * 注意：Chrome 按站点活跃度自动决定，Firefox 会弹出授权提示，Safari 支持有限。
+ * @returns {Promise<boolean>} 当前是否已处于持久化状态
+ */
+export async function requestPersistentStorage() {
+    if (persistAsked) return false;
+    persistAsked = true;
+    try {
+        if (!navigator.storage || !navigator.storage.persist) return false;
+        if (await navigator.storage.persisted()) return true;
+        return await navigator.storage.persist();
+    } catch (err) {
+        console.warn('申请持久化存储失败', err);
+        return false;
+    }
+}
+
 function save() {
     try {
         localStorage.setItem(KEY, JSON.stringify(db));
+        // 第一次成功写入后（即创建档案后）再申请，避免首次打开就弹授权提示
+        requestPersistentStorage();
     } catch (err) {
         console.warn('保存进度失败', err);
     }
