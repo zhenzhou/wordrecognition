@@ -3,8 +3,8 @@
  *
  * 数据结构：
  *   db = { v, current, settings, profiles: { [id]: profile } }
- *   profile = { id, name, avatar, pet, petBest, created, goal, chars, groups, days }
- *   pet = 宠物物种 id；petBest = 宠物曾达到的最高成长阶段（宠物不会退化）
+ *   profile = { id, name, avatar, pet, petPeak, created, goal, chars, groups, days }
+ *   pet = 宠物物种 id；petPeak = 历史最高的“已认识字数”（宠物按它成长，所以不会退化）
  *   chars[c]  = { s: 1 学过 | 2 认识, b: 复习盒子 0~6, d: 下次复习时间戳, t: 首次学习时间, ok, ng }
  *   groups[id] = { done: 时间戳, stars: 1~3 }
  *   days[YYYY-MM-DD] = { n: 新学字数, k: 新认识字数, q: 测验次数 }
@@ -108,7 +108,7 @@ export function createProfile(name, pet) {
         name: name.trim().slice(0, 12) || '小朋友',
         pet: species.id,
         avatar: species.emoji,
-        petBest: 0,
+        petPeak: 0,
         created: Date.now(),
         goal: 5,
         chars: {},

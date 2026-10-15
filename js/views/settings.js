@@ -3,7 +3,7 @@
  */
 import { D } from '../data.js';
 import { canSpeak, listVoices, speakText } from '../speech.js';
-import { SPECIES, STAGE_THRESHOLDS, petElement, petTitle, profileAvatar, profileStage, speciesById, speciesOf } from '../pets.js';
+import { MAX_LEVEL, SPECIES, STAGE_THRESHOLDS, growthInfo, petElement, petTitle, profileAvatar, profilePeak, speciesById, speciesOf } from '../pets.js';
 import {
     createProfile,
     deleteProfile,
@@ -144,7 +144,8 @@ function petSection(rerender) {
     const p = getProfile();
     const id = speciesOf(p);
     const species = speciesById(id);
-    const best = profileStage(p);
+    const info = growthInfo(id, profilePeak(p));
+    const best = info.stage;
     const show = h('input', {
         type: 'checkbox',
         checked: getSettings().showPet !== false,
@@ -161,11 +162,11 @@ function petSection(rerender) {
     const stages = h(
         'ol',
         { class: 'pet-stages', 'aria-label': `${species.name}的成长阶段` },
-        [0, 1, 2, 3, 4, 5].map((s) =>
+        STAGE_THRESHOLDS.map((_, s) =>
             h(
                 'li',
                 { class: s <= best ? 'got' : '' },
-                petElement(id, s, 72),
+                petElement(id, s, 72, s === best ? info.grow : undefined),
                 h('span', { class: 'ps-title', text: petTitle(id, s) }),
                 h('span', { class: 'ps-need muted', text: s === 0 ? '领养时' : `认识 ${STAGE_THRESHOLDS[s]} 字` }),
             ),
@@ -175,7 +176,7 @@ function petSection(rerender) {
         'section',
         { class: 'card' },
         h('h2', { text: '🐾 学习宠物' }),
-        h('p', { class: 'muted', text: `现在是「${petTitle(id, best)}」。认识的字越多，宠物就会长得越大；换一只宠物不会丢失成长进度。` }),
+        h('p', { class: 'muted', text: `现在是「${info.title}」Lv.${info.level}（满级 Lv.${MAX_LEVEL}）。每认识一些字就升一级，前期每认 5 个字升 1 级，后面逐渐放慢；每天学满目标字数还能把宠物喂饱。换一只宠物不会丢失成长进度。` }),
         h('label', { class: 'check' }, show, ' 在页面右侧显示宠物'),
         stages,
         h('p', { class: 'muted', text: '换一只宠物：' }),

@@ -1,19 +1,44 @@
 /**
  * 宠物伙伴：物种数据、成长阶段、SVG 绘制。
  *
- * 这是一个纯模块（不依赖 store），宠物的成长阶段由“已认识的字数”决定：
- *   0 蛋 → 1 宝宝 → 2 少年 → 3 青年 → 4 成年 → 5 神兽
+ * 这是一个纯模块（不依赖 store）。宠物的成长由“已认识的字数”决定，分两层：
+ *   形态（外观，8 种）：蛋 → 宝宝 → 少年 → 青年 → 成年 → 勇士 → 王者 → 神兽
+ *   等级（Lv.1 ~ Lv.125）：前期每认 5 个字升一级，之后逐渐放宽到每 30 个字，
+ *                         形态内的体型也会随进度平滑变大。
  * 所有图形都是代码生成的 SVG，不需要额外图片文件。
  */
 
 /** 各成长阶段需要的“已认识字数”。 */
-export const STAGE_THRESHOLDS = [0, 5, 50, 200, 600, 1500];
+export const STAGE_THRESHOLDS = [0, 5, 40, 120, 300, 600, 1100, 1800];
 export const MAX_STAGE = STAGE_THRESHOLDS.length - 1;
-const STAGE_SUFFIX = ['蛋', '宝宝', '少年', '青年', '成年', '神兽'];
-/** 各阶段整体缩放（越小越幼小）。 */
-const STAGE_SCALE = [1, 0.58, 0.7, 0.82, 0.92, 1];
-/** 九尾狐各阶段的尾巴数量。 */
-const FOX_TAILS = [0, 1, 3, 5, 7, 9];
+
+/**
+ * 等级：比“形态”细得多，让小朋友几乎每隔一两天就能升一级（按每天认 5 个字算）。
+ * 每段 [认识字数上限, 升一级所需字数]：
+ *   0~50 字每 5 字一级（每天 1 级）、50~200 每 10 字（2 天）、
+ *   200~600 每 20 字（4 天）、600~3000 每 30 字（6 天）。
+ */
+const LEVEL_PLAN = [[50, 5], [200, 10], [600, 20], [3000, 30]];
+/** LEVEL_THRESHOLDS[i] = 达到第 i+1 级所需的已认识字数。 */
+export const LEVEL_THRESHOLDS = (() => {
+    const list = [0];
+    let at = 0;
+    for (const [limit, step] of LEVEL_PLAN) {
+        while (at + step <= limit) {
+            at += step;
+            list.push(at);
+        }
+    }
+    return list;
+})();
+export const MAX_LEVEL = LEVEL_THRESHOLDS.length;
+
+/** 各形态的基础缩放；同一形态内会随进度从 S[f] 平滑长大到 S[f+1]。 */
+const STAGE_SCALE = [1, 0.56, 0.64, 0.72, 0.79, 0.86, 0.92, 0.97, 1];
+/** 形态称号后缀（物种没有专属称号时使用）。 */
+const FORM_NAMES = [(s) => `${s}蛋`, (s) => `${s}宝宝`, (s) => `少年${s}`, (s) => `青年${s}`, (s) => `成年${s}`, (s) => `${s}勇士`, (s) => `${s}王`, (s) => `神${s}`];
+/** 九尾狐各形态的尾巴数量。 */
+const FOX_TAILS = [0, 1, 2, 3, 5, 7, 8, 9];
 
 const INK = '#2b2438';
 const NOSE = '#4a3030';
@@ -79,8 +104,8 @@ const DEFS = {
         belly: '#fff3df',
         line: '#c4560a',
         muzzle: '#fff3df',
-        stageNames: ['狐蛋', '一尾小狐', '三尾灵狐', '五尾妖狐', '七尾仙狐', '九尾天狐'],
-        tail: (stage, c) => fan(FOX_TAILS[stage], [c.fur, '#ffb561'], stage === 5 ? '#a8ecff' : '#ffffff', c.dark, { origin: [100, 172], scale: 1.12, span: Math.min(130, 30 + 12 * FOX_TAILS[stage]), single: 50 }),
+        stageNames: ['狐蛋', '一尾小狐', '二尾灵狐', '三尾灵狐', '五尾妖狐', '七尾仙狐', '八尾天狐', '九尾神狐'],
+        tail: (stage, c) => fan(FOX_TAILS[stage], [c.fur, '#ffb561'], stage === 7 ? '#a8ecff' : '#ffffff', c.dark, { origin: [100, 172], scale: 1.12, span: Math.min(130, 30 + 12 * FOX_TAILS[stage]), single: 50 }),
         ears: (c) => twin(`<polygon points="56,80 44,14 98,54" fill="${c.fur}" stroke="${c.line}" stroke-width="3" stroke-linejoin="round"/><polygon points="58,68 52,34 84,56" fill="#fff3df"/>`),
         faceBase: () => twin('<polygon points="50,102 76,100 62,128" fill="#ffffff"/>'),
         marks: () => '<path d="M100 64 C93 72 93 79 100 84 C107 79 107 72 100 64Z" fill="#e8505b"/>',
@@ -94,7 +119,7 @@ const DEFS = {
         belly: '#fff3df',
         line: '#c4630f',
         muzzle: '#fff3df',
-        stageNames: ['虎蛋', '小虎崽', '少年虎', '青年虎', '成年虎', '虎王'],
+        short: '虎',
         tail: (stage, c) => curl(c.fur, c.dark, 15),
         ears: (c) => twin(`<circle cx="62" cy="62" r="17" fill="${c.fur}" stroke="${c.line}" stroke-width="2.5"/><circle cx="62" cy="63" r="9" fill="#fff3df"/>`),
         bodyMarks: (c) => twin(`<path d="M62 138 l12 2 M60 150 l14 0 M63 162 l12 -3" stroke="${c.dark}" stroke-width="4.5" stroke-linecap="round" fill="none"/>`),
@@ -113,7 +138,7 @@ const DEFS = {
         line: '#8d86a0',
         limb: INK,
         muzzle: '#ffffff',
-        stageNames: ['熊猫蛋', '熊猫宝宝', '少年熊猫', '青年熊猫', '成年熊猫', '国宝熊猫'],
+        short: '熊猫',
         tail: () => '<circle cx="136" cy="176" r="11" fill="#ffffff" stroke="#8d86a0" stroke-width="2.5"/>',
         ears: (c) => twin(`<circle cx="62" cy="62" r="17" fill="${c.dark}"/>`),
         underEyes: (c) => twin(`<ellipse cx="80" cy="98" rx="12" ry="15" transform="rotate(22 80 98)" fill="${c.dark}"/>`),
@@ -127,7 +152,7 @@ const DEFS = {
         belly: '#ffffff',
         line: '#d3bfd6',
         muzzle: '#ffffff',
-        stageNames: ['兔蛋', '兔宝宝', '小白兔', '青年兔', '成年兔', '月兔神兽'],
+        short: '兔',
         tail: () => '<circle cx="137" cy="176" r="12" fill="#ffffff" stroke="#d3bfd6" stroke-width="2.5"/>',
         ears: (c) => twin(`<ellipse cx="80" cy="32" rx="13" ry="33" transform="rotate(-10 80 58)" fill="${c.fur}" stroke="${c.line}" stroke-width="2.5"/><ellipse cx="80" cy="34" rx="6.5" ry="24" transform="rotate(-10 80 58)" fill="#ffc2d1"/>`),
         marks: () => '<rect x="95" y="114" width="10" height="9" rx="2.5" fill="#ffffff" stroke="#d3bfd6" stroke-width="1.6"/>',
@@ -142,7 +167,7 @@ const DEFS = {
         line: '#6b7894',
         muzzle: '#ffffff',
         noseColor: '#ff8fa3',
-        stageNames: ['猫蛋', '小奶猫', '少年猫', '青年猫', '成年猫', '喵星神兽'],
+        short: '猫',
         tail: (stage, c) => curl(c.fur, null, 13),
         ears: (c) => twin(`<polygon points="56,78 52,30 92,58" fill="${c.fur}" stroke="${c.line}" stroke-width="3" stroke-linejoin="round"/><polygon points="61,68 58,42 82,58" fill="#ffc2d1"/>`),
         marks: (stage, c) => `<path d="M91 70 V80 M100 67 V80 M109 70 V80" stroke="${c.dark}" stroke-width="3.5" stroke-linecap="round" fill="none"/>` + whiskers(),
@@ -156,7 +181,7 @@ const DEFS = {
         belly: '#fff4e3',
         line: '#a8743a',
         muzzle: '#fff4e3',
-        stageNames: ['狗蛋', '小奶狗', '少年犬', '青年犬', '成年犬', '神犬'],
+        short: '狗',
         tail: (stage, c) => curl(c.fur, null, 12, 'M132 170 C152 168 160 152 156 136'),
         ears: (c) => twin(`<ellipse cx="52" cy="92" rx="15" ry="29" transform="rotate(14 52 92)" fill="${c.dark}" stroke="${c.line}" stroke-width="2.5"/>`),
         underEyes: (c) => `<ellipse cx="119" cy="95" rx="16" ry="15" fill="${c.dark}" opacity="0.85"/>`,
@@ -171,7 +196,7 @@ const DEFS = {
         belly: '#fff1d6',
         line: '#c98a2b',
         muzzle: '#fff1d6',
-        stageNames: ['狮蛋', '小狮崽', '少年狮', '青年狮', '成年狮', '狮王'],
+        short: '狮',
         tail: (stage, c) => `<path d="M128 172 C165 176 176 150 166 128" stroke="${c.fur}" stroke-width="8" fill="none" stroke-linecap="round"/><ellipse cx="166" cy="124" rx="9" ry="13" transform="rotate(-10 166 124)" fill="${c.dark}"/>`,
         behind: (stage) => {
             const n = 14;
@@ -194,7 +219,7 @@ const DEFS = {
         line: '#2f8a58',
         muzzle: '#8ee0ae',
         nose: 'none',
-        stageNames: ['龙蛋', '小龙宝宝', '少年龙', '青年龙', '成年龙', '神龙'],
+        short: '龙',
         tail: (stage, c) =>
             `<path d="M128 172 C172 178 190 146 176 118" stroke="${c.fur}" stroke-width="16" fill="none" stroke-linecap="round"/><polygon points="166,124 176,98 188,124" fill="${c.dark}"/>`,
         ears: (c) =>
@@ -214,7 +239,7 @@ const DEFS = {
         line: '#e0b3cb',
         muzzle: '#ffffff',
         noCrown: true,
-        stageNames: ['独角兽蛋', '小独角兽', '少年独角兽', '青年独角兽', '成年独角兽', '天马独角兽'],
+        short: '独角兽',
         tail: () =>
             '<path d="M128 170 C172 172 184 140 172 112" stroke="#ff8fb8" stroke-width="10" fill="none" stroke-linecap="round"/>' +
             '<path d="M126 175 C178 180 194 144 182 118" stroke="#b79cff" stroke-width="8" fill="none" stroke-linecap="round"/>' +
@@ -242,7 +267,7 @@ const DEFS = {
         muzzle: null,
         nose: 'beak',
         noCrown: true,
-        stageNames: ['凤凰蛋', '雏凤', '少年凤', '青年凤', '成年凤', '涅槃神凰'],
+        short: '凤凰',
         tail: (stage) => fan(stage, ['#ff5a36', '#ff9f1c', '#ffd23f'], '#fff3b0', '#c23b1a', { origin: [100, 160], single: 40, scale: 0.95 }),
         top: () => [-30, 0, 30].map((a, i) => `<g transform="translate(100 64) rotate(${a}) scale(0.42)"><path d="${LEAF}" fill="${['#ff9f1c', '#ff5a36', '#ffd23f'][i]}" stroke="#c23b1a" stroke-width="3" stroke-linejoin="round"/></g>`).join(''),
     },
@@ -268,7 +293,7 @@ export function speciesOf(profile) {
 }
 
 // ---------------------------------------------------------------- 成长阶段
-/** 已认识字数 → 成长阶段（0~5）。 */
+/** 已认识字数 → 形态（0~7，决定宠物的外观）。 */
 export function stageFor(known) {
     let stage = 0;
     STAGE_THRESHOLDS.forEach((t, i) => {
@@ -277,22 +302,51 @@ export function stageFor(known) {
     return stage;
 }
 
-/** 阶段称号，如“三尾灵狐”“少年虎”。 */
+/** 已认识字数 → 等级（1~MAX_LEVEL，决定“Lv.几”，升级很频繁）。 */
+export function levelFor(known) {
+    let level = 1;
+    LEVEL_THRESHOLDS.forEach((t, i) => {
+        if (known >= t) level = i + 1;
+    });
+    return level;
+}
+
+/** 形态称号，如“三尾灵狐”“少年虎”。 */
 export function petTitle(id, stage) {
     const d = DEFS[id] || DEFS.fox;
-    return (d.stageNames && d.stageNames[stage]) || `${d.name}${STAGE_SUFFIX[stage]}`;
+    if (d.stageNames) return d.stageNames[stage];
+    return FORM_NAMES[stage](d.short || d.name);
 }
 
 /**
- * 成长信息。
- * @returns {{stage:number, title:string, nextAt:(number|null), need:number, pct:number}}
+ * 成长信息。传入的 known 应是“历史最高已认识字数”，这样宠物不会退化。
+ * @returns {{
+ *   stage:number, title:string, grow:number,
+ *   level:number, nextLevelAt:(number|null), needLevel:number, levelPct:number,
+ *   nextStageAt:(number|null), needStage:number, nextTitle:(string|null)
+ * }}
+ *   stage 形态；grow 为本形态内的成长进度 0~1（用于平滑变大）；
+ *   level 等级；levelPct 当前等级内的进度百分比。
  */
 export function growthInfo(id, known) {
     const stage = stageFor(known);
-    const nextAt = stage >= MAX_STAGE ? null : STAGE_THRESHOLDS[stage + 1];
-    const base = STAGE_THRESHOLDS[stage];
-    const pct = nextAt === null ? 100 : Math.round(((known - base) / (nextAt - base)) * 100);
-    return { stage, title: petTitle(id, stage), nextAt, need: nextAt === null ? 0 : nextAt - known, pct };
+    const level = levelFor(known);
+    const nextStageAt = stage >= MAX_STAGE ? null : STAGE_THRESHOLDS[stage + 1];
+    const nextLevelAt = level >= MAX_LEVEL ? null : LEVEL_THRESHOLDS[level];
+    const levelBase = LEVEL_THRESHOLDS[level - 1];
+    const stageBase = STAGE_THRESHOLDS[stage];
+    return {
+        stage,
+        title: petTitle(id, stage),
+        grow: nextStageAt === null ? 1 : (known - stageBase) / (nextStageAt - stageBase),
+        level,
+        nextLevelAt,
+        needLevel: nextLevelAt === null ? 0 : nextLevelAt - known,
+        levelPct: nextLevelAt === null ? 100 : Math.round(((known - levelBase) / (nextLevelAt - levelBase)) * 100),
+        nextStageAt,
+        needStage: nextStageAt === null ? 0 : nextStageAt - known,
+        nextTitle: nextStageAt === null ? null : petTitle(id, stage + 1),
+    };
 }
 
 // ---------------------------------------------------------------- SVG 绘制
@@ -311,6 +365,10 @@ function eggSvg(c) {
 function wingsSvg() {
     const feather = (x, y, rx, rot) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="11" transform="rotate(${rot} ${x} ${y})" fill="#ffe9a3" stroke="#f0b429" stroke-width="2.5"/>`;
     return `<g class="pet-wings">${twin(feather(40, 100, 30, -55) + feather(30, 120, 32, -38) + feather(28, 138, 30, -20))}</g>`;
+}
+
+function capeSvg() {
+    return '<path d="M62 128 Q100 120 138 128 L152 184 Q100 198 48 184Z" fill="#7c6cf0" stroke="#5d4fd1" stroke-width="2.5" stroke-linejoin="round"/>';
 }
 
 function sparklesSvg(n) {
@@ -355,7 +413,7 @@ function accessoriesSvg(c, stage) {
     if (stage >= 4) {
         out += '<polygon points="100,158 103,166 112,166 105,171 108,180 100,175 92,180 95,171 88,166 97,166" fill="#ffd23f" stroke="#e09f1f" stroke-width="1.5" stroke-linejoin="round"/>';
     }
-    if (stage === 5 && !c.noCrown) {
+    if (stage >= 6 && !c.noCrown) {
         out +=
             '<polygon points="80,58 83,38 92,49 100,34 108,49 117,38 120,58" fill="#ffd23f" stroke="#e09f1f" stroke-width="2.5" stroke-linejoin="round"/>' +
             '<circle cx="100" cy="50" r="3" fill="#e8505b"/>';
@@ -366,13 +424,15 @@ function accessoriesSvg(c, stage) {
 /**
  * 生成宠物 SVG 字符串（内容全部来自本文件常量，可安全 innerHTML）。
  * @param {string} id 物种 id
- * @param {number} stage 成长阶段 0~5
+ * @param {number} stage 形态 0~7
+ * @param {number} [grow] 本形态内的成长进度 0~1，决定平滑的体型大小（默认取中间值，最终形态为 1）
  * @returns {string}
  */
-export function petSvg(id, stage = 3) {
+export function petSvg(id, stage = 3, grow) {
     const key = DEFS[id] ? id : 'fox';
     const c = DEFS[key];
     const s = Math.max(0, Math.min(MAX_STAGE, Math.floor(stage)));
+    const g = Math.max(0, Math.min(1, grow === undefined ? (s === MAX_STAGE ? 1 : 0.5) : grow));
     const uid = `pg${++uidCounter}`;
     const label = `${c.name}：${petTitle(key, s)}`;
     const S = `stroke="${c.line}" stroke-width="2.5" stroke-linejoin="round"`;
@@ -383,10 +443,11 @@ export function petSvg(id, stage = 3) {
         inner = eggSvg(c);
     } else {
         inner = '<ellipse cx="100" cy="190" rx="50" ry="6" fill="rgba(0,0,0,0.12)"/>';
-        if (s === 5) inner = wingsSvg() + inner;
+        if (s === 7) inner = wingsSvg() + inner;
         inner += c.tail ? c.tail(s, c) : '';
         inner += c.behind ? c.behind(s, c) : '';
         inner += c.ears ? c.ears(c) : '';
+        if (s >= 5) inner += capeSvg();
         // 身体、花纹、手脚
         inner += `<ellipse cx="100" cy="152" rx="40" ry="34" fill="${c.fur}" ${S}/>`;
         inner += `<ellipse cx="100" cy="158" rx="25" ry="23" fill="${c.belly}"/>`;
@@ -398,13 +459,13 @@ export function petSvg(id, stage = 3) {
         inner += accessoriesSvg(c, s);
     }
 
-    const scale = STAGE_SCALE[s];
+    const scale = s === 0 ? 1 : (STAGE_SCALE[s] + (STAGE_SCALE[s + 1] - STAGE_SCALE[s]) * g).toFixed(3);
     const aura =
-        s === 5
+        s === 7
             ? `<defs><radialGradient id="${uid}"><stop offset="0" stop-color="#ffe58a" stop-opacity="0.8"/><stop offset="1" stop-color="#ffe58a" stop-opacity="0"/></radialGradient></defs>` +
               `<circle class="pet-aura" cx="100" cy="116" r="104" fill="url(#${uid})"/>`
             : '';
-    const sparks = s >= 4 ? sparklesSvg(s === 5 ? 5 : 2) : '';
+    const sparks = s >= 4 ? sparklesSvg([0, 0, 0, 0, 1, 2, 3, 5][s]) : '';
     return (
         `<svg class="pet-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-20 -14 240 214" role="img" aria-label="${label}">` +
         aura +
@@ -414,27 +475,33 @@ export function petSvg(id, stage = 3) {
     );
 }
 
-/** 档案当前应显示的成长阶段（取历史最高与按已认识字数计算的较大者）。 */
-export function profileStage(profile) {
+/**
+ * 档案用于宠物成长的“历史最高已认识字数”。
+ * 取已保存的峰值与当前已认识字数的较大者，所以把字改回“还不熟”也不会让宠物退化。
+ */
+export function profilePeak(profile) {
     const known = Object.values((profile && profile.chars) || {}).filter((r) => r.s === 2).length;
-    return Math.max((profile && profile.petBest) || 0, stageFor(known));
+    return Math.max((profile && profile.petPeak) || 0, known);
 }
 
-/** 档案头像：该小朋友宠物当前成长阶段的 SVG 元素。 */
+/** 档案头像：该小朋友宠物当前成长状态的 SVG 元素。 */
 export function profileAvatar(profile, size = 40) {
-    return petElement(speciesOf(profile), profileStage(profile), size);
+    const id = speciesOf(profile);
+    const info = growthInfo(id, profilePeak(profile));
+    return petElement(id, info.stage, size, info.grow);
 }
 
 /**
  * 生成宠物 DOM 元素（span.pet-icon，包含 SVG）。
  * @param {string} id 物种 id
- * @param {number} stage 成长阶段
+ * @param {number} stage 形态
  * @param {number} [size] 像素宽度
+ * @param {number} [grow] 本形态内的成长进度 0~1
  */
-export function petElement(id, stage, size = 64) {
+export function petElement(id, stage, size = 64, grow) {
     const el = document.createElement('span');
     el.className = 'pet-icon';
     el.style.width = `${size}px`;
-    el.innerHTML = petSvg(id, stage);
+    el.innerHTML = petSvg(id, stage, grow);
     return el;
 }
